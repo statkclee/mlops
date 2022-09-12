@@ -1,0 +1,74 @@
+---
+title: "vetiver"
+format: html
+editor: source
+editor_options: 
+  chunk_output_type: console
+---
+
+# 관련 정보
+
+- [MLOps with vetiver](https://vetiver.rstudio.com/)
+
+# ML 모델
+
+## 헬로월드
+
+```{r}
+library(vetiver)
+cars_lm <- lm(mpg ~ ., data = mtcars)
+vetiver_model(cars_lm, "cars_linear")
+```
+
+## `tidymodels` 작업 흐름
+
+```{r}
+library(tidymodels)
+
+car_mod <-
+    workflow(mpg ~ ., linear_reg()) %>%
+    fit(mtcars)
+
+v <- vetiver_model(car_mod, "cars_mpg")
+v
+```
+
+# 배포
+
+```{r}
+library(vetiver)
+library(pins)
+
+od <- Microsoft365R::get_personal_onedrive()
+
+model_board <- board_ms365(od, "model_board")
+
+cars_lm <- lm(mpg ~ ., data = mtcars)
+v <- vetiver_model(cars_lm, "cars_linear")
+
+model_board %>% vetiver_pin_write(v)
+```
+
+```{r}
+library(plumber)
+pr() %>%
+  vetiver_api(v) %>%
+  pr_run(port = 8088)
+```
+
+```{r}
+library(vetiver)
+endpoint <- vetiver_endpoint("http://127.0.0.1:8088/predict")
+endpoint
+```
+
+```{r}
+library(tidyverse)
+
+new_cars <- mtcars %>% 
+    slice_sample(n = 3)
+
+predict(endpoint, new_cars)
+```
+
+
